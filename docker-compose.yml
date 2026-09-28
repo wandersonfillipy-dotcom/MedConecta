@@ -1,0 +1,27 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/medconecta
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: medconecta
+      DB_USER: medconecta
+      DB_PASS: medconecta123
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: medconecta
+      MYSQL_USER: medconecta
+      MYSQL_PASSWORD: medconecta123
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql

@@ -1,0 +1,8 @@
+HU1 - Interface didática (8 pts): agendamento com botões grandes, confirmação visual, lembrete.
+HU2 - Login (5 pts): autenticação segura, documentos PDF/imagem, busca por medicamento/especialidade.
+HU3 - Agendamento (3 pts): horários, local, especialidade, remarcar/cancelar, histórico.
+HU4 - Definition of Done: página checklist acessível no menu.
+HU5 - Guia de instalação: pré-requisitos e validação do ambiente.
+HU6 - Histórico de Sprints: metas, itens, datas.
+HU7 - Busca no cabeçalho com página de resultados.
+HU8 - Arquitetura: diagramas frontend/backend.
