@@ -172,6 +172,17 @@ if ($usuario) {
           </a>
         </li>
 
+        <li>
+          <a
+            href="<?= e(url('locais.php')) ?>"
+            <?= $paginaAtual === 'locais.php'
+              ? 'aria-current="page"'
+              : '' ?>
+          >
+            Locais
+          </a>
+        </li>
+
         <?php if ($usuario): ?>
 
           <li>
