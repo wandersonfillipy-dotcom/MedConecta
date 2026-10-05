@@ -15,17 +15,12 @@ if ($usuario) {
     ];
 
     $perfilAtual = $usuario['perfil'] ?? 'paciente';
-
-    $paginaArea =
-        $paginasPorPerfil[$perfilAtual] ?? 'dashboard.php';
+    $paginaArea = $paginasPorPerfil[$perfilAtual] ?? 'dashboard.php';
 }
-
 ?>
 
 <!DOCTYPE html>
-
 <html lang="pt-BR">
-
 <head>
   <meta charset="UTF-8">
 
@@ -36,25 +31,24 @@ if ($usuario) {
 
   <meta
     name="description"
-    content="MedConecta - Cuidado que conecta. Agende consultas, teleconsultas e acesse seus exames."
+    content="MedConecta - Cuidado que conecta. Agende consultas e acesse seus documentos médicos."
   >
 
   <title>
-    <?= e($tituloPagina ?? $cfg['nome']) ?>
-    |
-    <?= e($cfg['nome']) ?>
+    <?= e($tituloPagina ?? $cfg['nome']) ?> | <?= e($cfg['nome']) ?>
   </title>
 
   <link
     rel="stylesheet"
-    href="<?= e(url('assets/css/style.css')) ?>?v=3"
+    href="<?= e(url('assets/css/style.css')) ?>?v=4"
   >
 
   <link
-    rel="preconnect"
-    href="https://fonts.googleapis.com"
+    rel="stylesheet"
+    href="<?= e(url('assets/css/acessibilidade.css')) ?>?v=1"
   >
 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link
     rel="preconnect"
     href="https://fonts.gstatic.com"
@@ -65,6 +59,33 @@ if ($usuario) {
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
     rel="stylesheet"
   >
+
+  <script>
+    // Restaura as preferências antes de exibir a página.
+    (() => {
+      try {
+        const raiz = document.documentElement;
+        const tamanho = localStorage.getItem('mc_tamanho_fonte');
+
+        raiz.dataset.fonte =
+          ['normal', 'grande', 'maior'].includes(tamanho)
+            ? tamanho
+            : 'normal';
+
+        raiz.classList.toggle(
+          'alto-contraste',
+          localStorage.getItem('mc_contraste') === '1'
+        );
+
+        raiz.classList.toggle(
+          'modo-tea',
+          localStorage.getItem('mc_modo_tea') === '1'
+        );
+      } catch (erro) {
+        document.documentElement.dataset.fonte = 'normal';
+      }
+    })();
+  </script>
 </head>
 
 <body>
@@ -74,7 +95,6 @@ if ($usuario) {
 </a>
 
 <header class="site-header" role="banner">
-
   <div class="container header-inner">
 
     <a
@@ -82,7 +102,6 @@ if ($usuario) {
       href="<?= e(url('index.php')) ?>"
       aria-label="MedConecta - página inicial"
     >
-
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 44 56"
@@ -90,7 +109,6 @@ if ($usuario) {
         fill="none"
         aria-hidden="true"
       >
-
         <circle
           cx="22"
           cy="20"
@@ -123,13 +141,9 @@ if ($usuario) {
           stroke-width="3.5"
           stroke-linecap="round"
         />
-
       </svg>
 
-      <span class="logo-text-svg">
-        MedConecta
-      </span>
-
+      <span class="logo-text-svg">MedConecta</span>
     </a>
 
     <button
@@ -138,6 +152,7 @@ if ($usuario) {
       id="menu-toggle"
       aria-label="Abrir menu"
       aria-expanded="false"
+      aria-controls="nav-principal"
     >
       ☰
     </button>
@@ -147,9 +162,7 @@ if ($usuario) {
       id="nav-principal"
       aria-label="Menu principal"
     >
-
       <ul>
-
         <li>
           <a
             href="<?= e(url('index.php')) ?>"
@@ -157,6 +170,7 @@ if ($usuario) {
               ? 'aria-current="page"'
               : '' ?>
           >
+            <span class="tea-icon" aria-hidden="true">⌂</span>
             Início
           </a>
         </li>
@@ -168,6 +182,7 @@ if ($usuario) {
               ? 'aria-current="page"'
               : '' ?>
           >
+            <span class="tea-icon" aria-hidden="true">ℹ</span>
             Sobre
           </a>
         </li>
@@ -179,12 +194,12 @@ if ($usuario) {
               ? 'aria-current="page"'
               : '' ?>
           >
+            <span class="tea-icon" aria-hidden="true">⌖</span>
             Locais
           </a>
         </li>
 
         <?php if ($usuario): ?>
-
           <li>
             <a
               href="<?= e(url($paginaArea)) ?>"
@@ -192,12 +207,12 @@ if ($usuario) {
                 ? 'aria-current="page"'
                 : '' ?>
             >
+              <span class="tea-icon" aria-hidden="true">▣</span>
               Minha área
             </a>
           </li>
 
           <?php if (usuario_tem_perfil('paciente')): ?>
-
             <li>
               <a
                 href="<?= e(url('agendamento.php')) ?>"
@@ -205,14 +220,13 @@ if ($usuario) {
                   ? 'aria-current="page"'
                   : '' ?>
               >
+                <span class="tea-icon" aria-hidden="true">▦</span>
                 Agendar
               </a>
             </li>
-
           <?php endif; ?>
 
           <?php if (usuario_tem_perfil('administrador')): ?>
-
             <li>
               <a
                 href="<?= e(url('admin.php')) ?>"
@@ -220,12 +234,11 @@ if ($usuario) {
                   ? 'aria-current="page"'
                   : '' ?>
               >
+                <span class="tea-icon" aria-hidden="true">⚙</span>
                 Administração
               </a>
             </li>
-
           <?php endif; ?>
-
         <?php endif; ?>
 
         <li>
@@ -235,16 +248,14 @@ if ($usuario) {
               ? 'aria-current="page"'
               : '' ?>
           >
+            <span class="tea-icon" aria-hidden="true">✉</span>
             Contato
           </a>
         </li>
-
       </ul>
-
     </nav>
 
     <div class="header-actions">
-
       <form
         class="busca-header"
         action="<?= e(url('busca.php')) ?>"
@@ -252,10 +263,7 @@ if ($usuario) {
         role="search"
         aria-label="Buscar no site"
       >
-
-        <label class="sr-only" for="busca-q">
-          Buscar
-        </label>
+        <label class="sr-only" for="busca-q">Buscar</label>
 
         <input
           type="search"
@@ -273,22 +281,100 @@ if ($usuario) {
         >
           🔍
         </button>
-
       </form>
 
-      <button
-        type="button"
-        id="btn-contraste"
-        class="btn btn-ghost btn-sm"
-        aria-pressed="false"
-        aria-label="Alto contraste"
-        title="Alto contraste"
-      >
-        ◐
-      </button>
+      <details class="acessibilidade" id="acessibilidade">
+        <summary>
+          Acessibilidade
+        </summary>
+
+        <div class="acessibilidade-painel">
+          <p><strong>Configurações de acessibilidade</strong></p>
+
+          <button
+            type="button"
+            id="btn-contraste"
+            class="btn btn-outline"
+            aria-pressed="false"
+          >
+            Alto contraste
+          </button>
+
+          <fieldset class="controle-fonte">
+            <legend>Tamanho da fonte</legend>
+
+            <button
+              type="button"
+              data-fonte="normal"
+              aria-pressed="true"
+            >
+              Normal
+            </button>
+
+            <button
+              type="button"
+              data-fonte="grande"
+              aria-pressed="false"
+            >
+              Grande
+            </button>
+
+            <button
+              type="button"
+              data-fonte="maior"
+              aria-pressed="false"
+            >
+              Maior
+            </button>
+          </fieldset>
+
+          <button
+            type="button"
+            id="btn-modo-tea"
+            class="btn btn-outline"
+            aria-pressed="false"
+            aria-describedby="descricao-modo-tea"
+          >
+            Modo TEA
+          </button>
+
+          <p id="descricao-modo-tea">
+            Reduz movimentos e mostra símbolos junto aos nomes do menu.
+          </p>
+
+          <div class="temporizador-tea" id="temporizador-tea">
+            <p>
+              <strong>Tempo da atividade:</strong>
+              <output id="tempo-restante" aria-label="Tempo restante">
+                05:00
+              </output>
+            </p>
+
+            <progress
+              id="tempo-progresso"
+              max="300"
+              value="0"
+              aria-label="Tempo decorrido"
+            ></progress>
+
+            <div class="temporizador-acoes">
+              <button type="button" id="tempo-iniciar">
+                Iniciar
+              </button>
+
+              <button type="button" id="tempo-pausar">
+                Pausar
+              </button>
+
+              <button type="button" id="tempo-reiniciar">
+                Reiniciar
+              </button>
+            </div>
+          </div>
+        </div>
+      </details>
 
       <?php if ($usuario): ?>
-
         <span class="user-pill">
           <?= e(explode(' ', $usuario['nome'])[0]) ?>
         </span>
@@ -300,9 +386,7 @@ if ($usuario) {
         >
           Sair
         </button>
-
       <?php else: ?>
-
         <a
           href="<?= e(url('login.php')) ?>"
           class="btn btn-outline btn-sm"
@@ -316,13 +400,10 @@ if ($usuario) {
         >
           Cadastrar
         </a>
-
       <?php endif; ?>
-
     </div>
 
   </div>
-
 </header>
 
 <main id="conteudo-principal" class="site-main">

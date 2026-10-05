@@ -4,8 +4,14 @@
 <footer class="site-footer" role="contentinfo">
   <div class="container footer-grid">
     <div>
-      <strong style="color:#fff;font-size:1.1rem;"><?= e($cfg['nome']) ?></strong>
-      <p style="margin-top:.4rem;opacity:.8;"><?= e($cfg['tagline']) ?></p>
+      <strong style="color:#fff;font-size:1.1rem;">
+        <?= e($cfg['nome']) ?>
+      </strong>
+
+      <p style="margin-top:.4rem;opacity:.8;">
+        <?= e($cfg['tagline']) ?>
+      </p>
+
       <p style="font-size:.8rem;opacity:.6;margin-top:.5rem;">
         Versão <?= e($cfg['versao']) ?>
       </p>
@@ -13,13 +19,25 @@
 
     <nav aria-label="Links do rodapé">
       <ul class="footer-links">
-        <li><a href="<?= e(url('sobre.php')) ?>">Sobre o projeto</a></li>
-        <li><a href="<?= e(url('contato.php')) ?>">Fale conosco</a></li>
+        <li>
+          <a href="<?= e(url('sobre.php')) ?>">
+            Sobre o projeto
+          </a>
+        </li>
+
+        <li>
+          <a href="<?= e(url('contato.php')) ?>">
+            Fale conosco
+          </a>
+        </li>
       </ul>
     </nav>
 
     <div>
-      <p><strong style="color:#fff;">Conformidade</strong></p>
+      <p>
+        <strong style="color:#fff;">Conformidade</strong>
+      </p>
+
       <p style="font-size:.85rem;opacity:.8;margin-top:.35rem;">
         Dados protegidos conforme LGPD.<br>
         Faculdade SENAC · Projeto acadêmico
@@ -28,7 +46,10 @@
   </div>
 
   <div class="container footer-bottom-inner">
-    <p>&copy; <?= date('Y') ?> <?= e($cfg['nome']) ?>. Todos os direitos reservados.</p>
+    <p>
+      &copy; <?= date('Y') ?> <?= e($cfg['nome']) ?>.
+      Todos os direitos reservados.
+    </p>
   </div>
 </footer>
 
@@ -38,7 +59,16 @@
     csrfToken: <?= json_encode(csrf_token()) ?>
   };
 </script>
-<script src="<?= e(url('assets/js/validacao.js')) ?>?v=3" defer></script>
-<script src="<?= e(url('assets/js/app.js')) ?>?v=3" defer></script>
+
+<script
+  src="<?= e(url('assets/js/validacao.js')) ?>?v=5"
+  defer
+></script>
+
+<script
+  src="<?= e(url('assets/js/app.js')) ?>?v=3"
+  defer
+></script>
+
 </body>
 </html>
