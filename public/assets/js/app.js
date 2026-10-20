@@ -1,3 +1,4 @@
+
 /* MedConecta — app.js */
 
 const MC = window.MedConecta || { baseUrl: '/', csrfToken: '' };
@@ -27,12 +28,12 @@ function feedback(elemento, mensagem, tipo = 'erro') {
 }
 
 async function apiPost(endpoint, dados) {
-  dados.csrf = MC.csrfToken;
+  const corpo = { ...dados, csrf: MC.csrfToken };
 
   const resposta = await fetch(MC.baseUrl + endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(dados)
+    body: JSON.stringify(corpo)
   });
 
   return resposta.json();
@@ -53,7 +54,7 @@ function bindForm(seletorFormulario, endpoint, aoSalvar) {
     const aviso = formulario.querySelector('[role="alert"]');
     const botao = formulario.querySelector('[type="submit"]');
 
-    botao.disabled = true;
+    if (botao) botao.disabled = true;
     feedback(aviso, 'Aguarde…', 'info');
 
     const dados = Object.fromEntries(new FormData(formulario));
@@ -77,7 +78,7 @@ function bindForm(seletorFormulario, endpoint, aoSalvar) {
         'erro'
       );
     } finally {
-      botao.disabled = false;
+      if (botao) botao.disabled = false;
     }
   });
 }
@@ -255,7 +256,9 @@ function iconeTipo(tipo) {
 
 function formatarDataDocumento(documento) {
   if (documento.data_documento) {
-    const data = new Date(documento.data_documento.slice(0, 10) + 'T12:00:00');
+    const data = new Date(
+      documento.data_documento.slice(0, 10) + 'T12:00:00'
+    );
 
     if (!Number.isNaN(data.getTime())) {
       return data.toLocaleDateString('pt-BR');
@@ -295,7 +298,6 @@ function renderDocumentos(documentos) {
     const id = Number(documento.id);
     const temArquivo = Boolean(documento.arquivo_path) && id > 0;
 
-    // O PHP verifica a sessão e se o arquivo pertence ao paciente.
     const urlArquivo = MC.baseUrl
       + 'api/arquivo.php?id='
       + encodeURIComponent(id);
@@ -398,6 +400,8 @@ function renderDocumentos(documentos) {
   });
 }
 
+/* CONSULTAS DO DASHBOARD */
+
 function renderConsultasDash(consultas) {
   const lista = $('#lista-consultas');
   if (!lista) return;
@@ -409,24 +413,76 @@ function renderConsultasDash(consultas) {
     return;
   }
 
-  lista.innerHTML = consultas.map(consulta => `
-    <div class="consulta-item">
-      <div>
-        <strong>${escaparHtml(consulta.medico)}</strong>
-        · ${escaparHtml(consulta.especialidade)}
+  lista.innerHTML = consultas.map(consulta => {
+    const profissionalVinculado =
+      consulta.profissional_id !== null &&
+      consulta.profissional_id !== undefined &&
+      consulta.profissional_id !== '';
 
-        <small>
-          ${new Date(consulta.data_hora).toLocaleString('pt-BR')}
-          · ${escaparHtml(consulta.local)}
+    const podeAbrirChat =
+      profissionalVinculado &&
+      consulta.status !== 'cancelada' &&
+      consulta.chat_status !== 'encerrada';
+
+    const botaoChat = podeAbrirChat
+      ? `
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          data-abrir-chat="${Number(consulta.id)}"
+          aria-label="Abrir chat da consulta com ${escaparHtml(consulta.medico)}"
+        >
+          💬 Abrir chat
+        </button>
+      `
+      : `
+        <small class="chat-indisponivel">
+          Chat indisponível
         </small>
-      </div>
+      `;
 
-      <span class="status-badge status-${escaparHtml(consulta.status)}">
-        ${escaparHtml(consulta.status)}
-      </span>
-    </div>
-  `).join('');
+    return `
+      <div class="consulta-item">
+        <div>
+          <strong>${escaparHtml(consulta.medico)}</strong>
+          · ${escaparHtml(consulta.especialidade)}
+
+          <small>
+            ${new Date(consulta.data_hora).toLocaleString('pt-BR')}
+            · ${escaparHtml(consulta.local)}
+          </small>
+        </div>
+
+        <div class="consulta-acoes">
+          <span class="status-badge status-${escaparHtml(consulta.status)}">
+            ${escaparHtml(consulta.status)}
+          </span>
+
+          ${botaoChat}
+        </div>
+      </div>
+    `;
+  }).join('');
 }
+
+/* RF08 — ABRIR CHAT DA CONSULTA */
+
+document.addEventListener('click', evento => {
+  const botao = evento.target.closest('[data-abrir-chat]');
+  if (!botao) return;
+
+  const consultaId = Number(botao.dataset.abrirChat);
+
+  if (!Number.isInteger(consultaId) || consultaId <= 0) {
+    return;
+  }
+
+  // A API continuará responsável por validar o acesso à consulta.
+  const destino = new URL(MC.baseUrl + 'chat.php', window.location.href);
+  destino.searchParams.set('consulta_id', String(consultaId));
+
+  location.href = destino.toString();
+});
 
 /* FILTRO DE DOCUMENTOS */
 
@@ -501,7 +557,13 @@ function iniciarModal() {
   });
 
   function mostrarPreview(arquivo) {
-    if (!arquivo || !nomePreview || !iconePreview || !placeholder || !preview) {
+    if (
+      !arquivo ||
+      !nomePreview ||
+      !iconePreview ||
+      !placeholder ||
+      !preview
+    ) {
       return;
     }
 
@@ -577,7 +639,11 @@ function iniciarModal() {
       return;
     }
 
-    if (!['application/pdf', 'image/jpeg', 'image/png'].includes(arquivo.type)) {
+    if (![
+      'application/pdf',
+      'image/jpeg',
+      'image/png'
+    ].includes(arquivo.type)) {
       feedback(aviso, 'Use um arquivo PDF, JPG ou PNG.', 'erro');
       return;
     }
@@ -585,7 +651,6 @@ function iniciarModal() {
     botaoSalvar.disabled = true;
     feedback(aviso, 'Salvando…', 'info');
 
-    // FormData inclui automaticamente o campo data_documento do dashboard.
     const dados = new FormData(formulario);
     dados.set('csrf', MC.csrfToken);
 
