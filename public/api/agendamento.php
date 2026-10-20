@@ -51,11 +51,12 @@ if ($method === 'POST') {
 
     try {
         $stmt = db()->prepare(
-            'INSERT INTO consultas (paciente_id, medico, especialidade, local, data_hora, status)
-             VALUES (:pid, :m, :e, :l, :dh, "agendada")'
+            'INSERT INTO consultas (paciente_id, profissional_id, medico, especialidade, local, data_hora, status)
+             VALUES (:pid, :teste, :m, :e, :l, :dh, "agendada")'
         );
         $stmt->execute([
             'pid' => $usuario['id'],
+            'teste' => 4,      #CORRIGIR E ALINHAR OS RELACIONAMENTOS DE MEDICOS E USUÁRIOS.
             'm' => $medico,
             'e' => $especialidade,
             'l' => $local,
