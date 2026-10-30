@@ -81,5 +81,5 @@ try {
     ]);
 } catch (Throwable $e) {
     registrar_log('erro', 'Falha no cadastro: ' . $e->getMessage());
-    json_response(['ok' => false, 'erro' => 'Erro SQL: ' . $e->getMessage()], 500);
+    json_response(['ok' => false, 'erro' => 'Erro ao salvar cadastro. Verifique se o MySQL está configurado.'], 500);
 }

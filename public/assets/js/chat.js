@@ -262,7 +262,7 @@
         conversa.medico || 'Profissional responsável';
 
       elemento.subtitulo.textContent =
-        conversa.especialidade || 'Consulta';
+        conversa.especialidade || 'F';
     } else {
       elemento.titulo.textContent =
         conversa.paciente_nome || 'Paciente';

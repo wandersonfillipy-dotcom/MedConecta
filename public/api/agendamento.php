@@ -12,9 +12,9 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
     try {
-        // Ajustado para cruzar as tabelas e trazer o nome do médico e da especialidade
+        // Busca as consultas do paciente cruzando com as tabelas de médicos e especialidades
         $stmt = db()->prepare(
-            'SELECT c.*, u.nome as medico, e.nome as especialidade_nome 
+            'SELECT c.*, u.nome as medico, e.nome as especialidade 
              FROM consultas c 
              INNER JOIN pacientes u ON c.profissional_id = u.id 
              LEFT JOIN especialidades e ON c.especialidade_id = e.id 
@@ -46,7 +46,6 @@ if ($method === 'POST') {
         json_response(['ok' => true, 'mensagem' => 'Consulta cancelada.']);
     }
 
-    // Recebe os IDs (se o frontend JS continuar enviando 'medico', ele pega o ID contido nele)
     $profissional_id = (int) ($input['profissional_id'] ?? $input['medico'] ?? 0);
     $especialidade_id = (int) ($input['especialidade_id'] ?? 0);
     $local = trim((string) ($input['local'] ?? 'MedConecta — Telemedicina'));
@@ -60,7 +59,6 @@ if ($method === 'POST') {
     $dataHora = date('Y-m-d H:i:s', strtotime($dataHoraCrua));
 
     try {
-        // ATENÇÃO: A sua tabela `consultas` precisa ter as colunas `profissional_id` e `especialidade_id`
         $stmt = db()->prepare(
             'INSERT INTO consultas (paciente_id, profissional_id, especialidade_id, local, data_hora, status)
              VALUES (:pid, :pro_id, :esp_id, :l, :dh, "agendada")'
@@ -73,15 +71,25 @@ if ($method === 'POST') {
             'dh'     => $dataHora,
         ]);
         
+        // Busca os nomes reais para retornar na confirmação visual da tela
+        $stmtMed = db()->prepare('SELECT nome FROM pacientes WHERE id = ?');
+        $stmtMed->execute([$profissional_id]);
+        $nomeMedico = $stmtMed->fetchColumn();
+
+        $stmtEsp = db()->prepare('SELECT nome FROM especialidades WHERE id = ?');
+        $stmtEsp->execute([$especialidade_id]);
+        $nomeEspecialidade = $stmtEsp->fetchColumn();
+
         json_response([
             'ok' => true,
             'mensagem' => 'Consulta agendada com sucesso!',
             'confirmacao' => [
+                'medico' => $nomeMedico,
+                'especialidade' => $nomeEspecialidade,
                 'data_hora' => $dataHora,
             ],
         ]);
     } catch (Throwable $e) {
-        // Exibe o erro real do banco de dados na mensagem vermelha para descobrirmos o que falta
         json_response(['ok' => false, 'erro' => 'Erro do BD: ' . $e->getMessage()], 500);
     }
 }

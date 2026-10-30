@@ -1,117 +1,457 @@
 <?php
+
 require_once dirname(__DIR__) . '/includes/bootstrap.php';
-$tituloPagina = 'Busca de Locais e Convénios';
+
+$tituloPagina = 'Locais de atendimento e convênios';
 
 require dirname(__DIR__) . '/includes/header.php';
 ?>
 
-<!-- Importação do CSS do Leaflet para o Mapa -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+>
+
 <style>
-    #mapa { height: 500px; width: 100%; margin-top: 20px; border-radius: 8px; }
-    .filtros-mapa { margin-top: 15px; }
+  #mapa {
+    position: relative;
+    z-index: 0;
+    height: 450px;
+    width: 100%;
+    border-radius: 8px;
+    margin: 18px 0;
+  }
+
+  .busca-locais {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 16px 0;
+  }
+
+  .busca-locais input {
+    flex: 1 1 280px;
+    min-width: 0;
+  }
+
+  .local-item {
+    padding: 14px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+  }
+
+  .local-item p {
+    margin: 4px 0;
+  }
+
+  .local-item button {
+    margin-top: 8px;
+  }
 </style>
 
 <section class="section">
   <div class="container container-narrow">
-    <h1>Locais de Atendimento e Convênios</h1>
-    <p class="subtitle">Encontre clínicas, hospitais e laboratórios próximos e verifique os convênios aceites.</p>
-    
-    <div class="filtros-mapa">
-        <label for="filtro-tipo"><strong>Filtrar por tipo:</strong></label>
-        <select id="filtro-tipo" onchange="carregarLocais()" style="padding: 5px; border-radius: 4px;">
-            <option value="Todos">Todos</option>
-            <option value="Clinica">Clínicas</option>
-            <option value="Hospital">Hospitais</option>
-            <option value="Laboratorio">Laboratórios</option>
-        </select>
-    </div>
+    <h1>Locais de atendimento e convênios</h1>
 
-    <!-- Contentor onde o mapa será renderizado -->
-    <div id="mapa"></div>
+    <p class="subtitle">
+      Encontre locais cadastrados, compare distâncias aproximadas
+      e consulte os convênios aceitos.
+    </p>
+
+    <form id="form-endereco" class="busca-locais">
+      <label class="sr-only" for="endereco-busca">
+        Seu endereço
+      </label>
+
+      <input
+        id="endereco-busca"
+        type="search"
+        placeholder="Digite seu endereço, cidade e estado"
+        minlength="3"
+        required
+      >
+
+      <button class="btn btn-primary" type="submit">
+        Buscar endereço
+      </button>
+
+      <button
+        class="btn btn-outline"
+        type="button"
+        id="usar-localizacao"
+      >
+        Usar minha localização
+      </button>
+    </form>
+
+    <label for="filtro-tipo">
+      <strong>Filtrar por tipo:</strong>
+    </label>
+
+    <select id="filtro-tipo">
+      <option value="Todos">Todos</option>
+      <option value="Clinica">Clínicas</option>
+      <option value="Hospital">Hospitais</option>
+      <option value="Laboratorio">Laboratórios</option>
+    </select>
+
+    <p id="estado-locais" role="status" aria-live="polite">
+      Carregando locais...
+    </p>
+
+    <div
+      id="mapa"
+      role="region"
+      aria-label="Mapa de locais de atendimento"
+    ></div>
+
+    <p>
+      <small>
+        Distância aproximada em linha reta.
+        Os endereços de demonstração podem ser fictícios.
+        Busca de endereço: OpenStreetMap/Nominatim.
+      </small>
+    </p>
+
+    <h2>Clínicas, hospitais e laboratórios cadastrados</h2>
+
+    <div id="lista-locais"></div>
   </div>
 </section>
 
-<!-- Importação do JavaScript do Leaflet e lógica do mapa -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
-    let mapa;
-    let marcadores = [];
+(() => {
+  'use strict';
 
-    function iniciarMapa(lat, lng) {
-        mapa = L.map('mapa').setView([lat, lng], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(mapa);
-        
-        L.marker([lat, lng]).addTo(mapa).bindPopup('<b>A sua localização</b>').openPopup();
-        carregarLocais();
+  const centroPadrao = [-15.793889, -47.882778];
+
+  const estado = document.getElementById('estado-locais');
+  const lista = document.getElementById('lista-locais');
+  const filtro = document.getElementById('filtro-tipo');
+  const formulario = document.getElementById('form-endereco');
+  const botaoLocalizacao = document.getElementById('usar-localizacao');
+
+  const mapa = L.map('mapa', {
+    zoomAnimation: false,
+    fadeAnimation: false,
+    markerZoomAnimation: false
+  }).setView(centroPadrao, 12);
+
+  const marcadores = L.layerGroup().addTo(mapa);
+
+  let marcadorOrigem = null;
+  let origem = centroPadrao;
+  let locais = [];
+
+  L.tileLayer(
+    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {
+      attribution: '&copy; OpenStreetMap contributors'
+    }
+  ).addTo(mapa);
+
+  function distanciaKm(lat1, lon1, lat2, lon2) {
+    const rad = graus => graus * Math.PI / 180;
+
+    const dLat = rad(lat2 - lat1);
+    const dLon = rad(lon2 - lon1);
+
+    const valor =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(rad(lat1)) *
+      Math.cos(rad(lat2)) *
+      Math.sin(dLon / 2) ** 2;
+
+    return 6371 * 2 * Math.asin(
+      Math.min(1, Math.sqrt(valor))
+    );
+  }
+
+  function posicaoValida(latitude, longitude) {
+    return (
+      Number.isFinite(latitude) &&
+      Number.isFinite(longitude) &&
+      latitude >= -90 &&
+      latitude <= 90 &&
+      longitude >= -180 &&
+      longitude <= 180
+    );
+  }
+
+  function linkGoogle(local) {
+    const consulta = `${local.latitude},${local.longitude}`;
+
+    return (
+      'https://www.google.com/maps/search/?api=1&query=' +
+      encodeURIComponent(consulta)
+    );
+  }
+
+  function detalhes(local) {
+    const conteudo = document.createElement('div');
+    const titulo = document.createElement('strong');
+
+    titulo.textContent = local.nome;
+    conteudo.appendChild(titulo);
+
+    const tipo = {
+      Clinica: 'Clínica',
+      Hospital: 'Hospital',
+      Laboratorio: 'Laboratório'
+    }[local.tipo] || local.tipo;
+
+    const textos = [
+      tipo,
+      local.endereco,
+      'Distância aproximada: ' +
+        local.distancia.toFixed(1) + ' km',
+      'Convênios: ' + local.convenios_aceites
+    ];
+
+    for (const texto of textos) {
+      const linha = document.createElement('div');
+      linha.textContent = texto;
+      conteudo.appendChild(linha);
     }
 
-   async function carregarLocais() {
-        const filtro = document.getElementById('filtro-tipo').value;
-        const containerLista = document.getElementById('lista-locais');
-        try {
-            const resposta = await fetch('api/locais.php');
-            const locais = await resposta.json();
+    const link = document.createElement('a');
 
-            // Limpa marcadores antigos do mapa
-            marcadores.forEach(m => mapa.removeLayer(m));
-            marcadores = [];
-            
-            let htmlLista = '<ul style="list-style: none; padding: 0;">';
+    link.href = linkGoogle(local);
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = 'Abrir no Google Maps';
 
-            locais.forEach(local => {
-                if (filtro === 'Todos' || local.tipo === filtro) {
-                    // Adiciona ao mapa
-                    const marcador = L.marker([local.latitude, local.longitude]).addTo(mapa);
-                    const info = `
-                        <b>${local.nome}</b><br>
-                        Tipo: ${local.tipo}<br>
-                        Endereço: ${local.endereco}<br>
-                        Convênios: <i>${local.convenios_aceites}</i>
-                    `;
-                    marcador.bindPopup(info);
-                    marcadores.push(marcador);
+    conteudo.appendChild(link);
 
-                    // Adiciona à lista textual
-                    htmlLista += `
-                        <li style="background: #f9f9f9; padding: 12px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #ddd;">
-                            <strong>${local.nome}</strong> (${local.tipo})<br>
-                            <small>📍 ${local.endereco}</small><br>
-                            <small style="color: #007bff;">🤝 Convênios: ${local.convenios_aceites}</small>
-                        </li>
-                    `;
-                }
-            });
+    return conteudo;
+  }
 
-            htmlLista += '</ul>';
-            containerLista.innerHTML = htmlLista;
+  function renderizar() {
+    marcadores.clearLayers();
+    lista.replaceChildren();
 
-        } catch (erro) {
-            console.error('Erro ao carregar locais:', erro);
-            containerLista.innerHTML = '<p style="color: red;">Erro ao carregar os dados dos locais.</p>';
-        }
-    }
-
-    // Obtém a geolocalização do utilizador ou usa coordenadas padrão (ex: Brasília)
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (pos) => iniciarMapa(pos.coords.latitude, pos.coords.longitude),
-            () => iniciarMapa(-15.793889, -47.882778)
+    const selecionados = locais
+      .filter(local => {
+        return (
+          filtro.value === 'Todos' ||
+          local.tipo === filtro.value
         );
-    } else {
-        iniciarMapa(-15.793889, -47.882778);
-    }
-</script>
+      })
+      .filter(local => {
+        return posicaoValida(
+          Number(local.latitude),
+          Number(local.longitude)
+        );
+      })
+      .map(local => ({
+        ...local,
+        distancia: distanciaKm(
+          origem[0],
+          origem[1],
+          Number(local.latitude),
+          Number(local.longitude)
+        )
+      }))
+      .sort((a, b) => a.distancia - b.distancia);
 
-<section class="section" style="margin-top: 30px;">
-  <div class="container container-narrow">
-    <h3>Clínicas e Hospitais Cadastrados</h3>
-    <div id="lista-locais" style="margin-top: 15px;">
-        <p>A carregar lista de locais...</p>
-    </div>
-  </div>
-</section>
+    if (!selecionados.length) {
+      estado.textContent =
+        'Nenhum local cadastrado para este filtro.';
+      return;
+    }
+
+    estado.textContent =
+      `${selecionados.length} local(is) encontrado(s), ` +
+      'ordenados por distância aproximada.';
+
+    for (const local of selecionados) {
+      const marcador = L.marker([
+        Number(local.latitude),
+        Number(local.longitude)
+      ]).bindPopup(detalhes(local));
+
+      marcadores.addLayer(marcador);
+
+      const item = document.createElement('article');
+      item.className = 'local-item';
+      item.appendChild(detalhes(local));
+
+      const botao = document.createElement('button');
+
+      botao.type = 'button';
+      botao.className = 'btn btn-outline btn-sm';
+      botao.textContent = 'Ver no mapa';
+
+      botao.addEventListener('click', () => {
+        mapa.setView(
+          marcador.getLatLng(),
+          15,
+          { animate: false }
+        );
+
+        marcador.openPopup();
+
+        const modoTea =
+          document.documentElement.classList.contains('modo-tea');
+
+        document.getElementById('mapa').scrollIntoView({
+          behavior: modoTea ? 'instant' : 'smooth'
+        });
+      });
+
+      item.appendChild(botao);
+      lista.appendChild(item);
+    }
+  }
+
+  function definirOrigem(latitude, longitude, descricao) {
+    const lat = Number(latitude);
+    const lon = Number(longitude);
+
+    if (!posicaoValida(lat, lon)) {
+      throw new Error('Coordenadas inválidas.');
+    }
+
+    origem = [lat, lon];
+
+    if (marcadorOrigem) {
+      mapa.removeLayer(marcadorOrigem);
+    }
+
+    marcadorOrigem = L.circleMarker(origem, {
+      radius: 9,
+      color: '#006b68',
+      fillColor: '#2ec4b6',
+      fillOpacity: 1
+    });
+
+    const textoOrigem = document.createElement('span');
+    textoOrigem.textContent = descricao;
+
+    marcadorOrigem.addTo(mapa).bindPopup(textoOrigem);
+
+    mapa.setView(origem, 12, { animate: false });
+
+    renderizar();
+  }
+
+  filtro.addEventListener('change', renderizar);
+
+  formulario.addEventListener('submit', async evento => {
+    evento.preventDefault();
+
+    const endereco =
+      document.getElementById('endereco-busca').value.trim();
+
+    if (endereco.length < 3) {
+      return;
+    }
+
+    const botao =
+      formulario.querySelector('button[type="submit"]');
+
+    botao.disabled = true;
+    estado.textContent = 'Buscando endereço...';
+
+    try {
+      const parametros = new URLSearchParams({
+        q: endereco,
+        format: 'jsonv2',
+        limit: '1',
+        countrycodes: 'br'
+      });
+
+      const resposta = await fetch(
+        'https://nominatim.openstreetmap.org/search?' +
+        parametros
+      );
+
+      if (!resposta.ok) {
+        throw new Error(
+          'Serviço de endereços indisponível.'
+        );
+      }
+
+      const resultados = await resposta.json();
+
+      if (!resultados.length) {
+        throw new Error(
+          'Endereço não encontrado. Informe rua, cidade e estado.'
+        );
+      }
+
+      definirOrigem(
+        resultados[0].lat,
+        resultados[0].lon,
+        'Endereço informado'
+      );
+    } catch (erro) {
+      estado.textContent =
+        erro.message || 'Não foi possível buscar o endereço.';
+    } finally {
+      botao.disabled = false;
+    }
+  });
+
+  botaoLocalizacao.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      estado.textContent =
+        'Localização indisponível neste navegador. Digite um endereço.';
+      return;
+    }
+
+    estado.textContent = 'Obtendo sua localização...';
+
+    navigator.geolocation.getCurrentPosition(
+      posicao => {
+        definirOrigem(
+          posicao.coords.latitude,
+          posicao.coords.longitude,
+          'Sua localização'
+        );
+      },
+      () => {
+        estado.textContent =
+          'Permissão negada ou localização indisponível. ' +
+          'Digite um endereço.';
+      },
+      {
+        timeout: 10000,
+        enableHighAccuracy: false
+      }
+    );
+  });
+
+  definirOrigem(
+    ...centroPadrao,
+    'Centro de Brasília (posição inicial)'
+  );
+
+  fetch(<?= json_encode(url('api/locais.php')) ?>)
+    .then(resposta => {
+      if (!resposta.ok) {
+        throw new Error('Falha ao consultar locais.');
+      }
+
+      return resposta.json();
+    })
+    .then(dados => {
+      if (!Array.isArray(dados)) {
+        throw new Error('Resposta inválida da API.');
+      }
+
+      locais = dados;
+      renderizar();
+    })
+    .catch(() => {
+      estado.textContent =
+        'Não foi possível carregar os locais cadastrados.';
+    });
+})();
+</script>
 
 <?php require dirname(__DIR__) . '/includes/footer.php'; ?>

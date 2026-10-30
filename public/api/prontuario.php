@@ -64,6 +64,13 @@ if ($metodo === 'GET') {
                 'erro' => 'Erro ao verificar autorização.'
             ], 500);
         }
+    } elseif ($perfil === 'administrador') {
+        // Se for admin, permite consultar o ID passado na URL ou o próprio ID se não passar nada
+        $pacienteId = filter_input(
+            INPUT_GET,
+            'paciente_id',
+            FILTER_VALIDATE_INT
+        ) ?: $usuarioId;
     } else {
         json_response([
             'ok' => false,
@@ -138,7 +145,7 @@ if ($metodo !== 'POST') {
 /*
  * Nesta etapa, apenas o paciente altera seu próprio prontuário.
  */
-if ($perfil !== 'paciente') {
+if ($perfil !== 'paciente' && $perfil !== 'administrador') {
     json_response([
         'ok' => false,
         'erro' => 'Acesso negado.'
