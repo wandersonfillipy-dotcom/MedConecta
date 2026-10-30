@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/includes/bootstrap.php';
 
-exigir_perfil(['paciente', 'profissional']);
+exigir_perfil(['paciente', 'profissional', 'administrador']);
 
 $usuario = usuario_logado();
 

@@ -16,7 +16,7 @@ $usuarioId = (int) $usuario['id'];
 $perfil = (string) ($usuario['perfil'] ?? '');
 $metodo = $_SERVER['REQUEST_METHOD'] ?? '';
 
-if (!in_array($perfil, ['paciente', 'profissional'], true)) {
+if (!in_array($perfil, ['paciente', 'profissional','administrador'], true)) {
     json_response([
         'ok' => false,
         'erro' => 'Seu perfil não tem acesso ao chat.'
@@ -58,38 +58,38 @@ function obterConversaAutorizada(
     int $usuarioId,
     string $perfil
 ): ?array {
-    $campo = $perfil === 'paciente'
-        ? 'c.paciente_id'
-        : 'c.profissional_id';
-
-    $sql = "SELECT
-                c.id,
-                c.consulta_id,
-                c.paciente_id,
-                c.profissional_id,
-                c.status,
-                c.inicio_em,
-                c.fim_em,
-                q.medico,
-                q.especialidade,
+    // 1. Monta a query principal com todos os relacionamentos necessários
+    $sql = "SELECT 
+                c.*, 
+                q.data_hora,
+                u.nome AS medico,
+                e.nome AS especialidade,
                 p.nome AS paciente_nome
             FROM conversas c
-            INNER JOIN consultas q
-                ON q.id = c.consulta_id
-            INNER JOIN pacientes p
-                ON p.id = c.paciente_id
-            WHERE c.id = :conversa_id
-                AND {$campo} = :usuario_id
-            LIMIT 1";
+            INNER JOIN consultas q ON c.consulta_id = q.id
+            LEFT JOIN pacientes u ON q.profissional_id = u.id
+            LEFT JOIN especialidades e ON q.especialidade_id = e.id
+            LEFT JOIN pacientes p ON c.paciente_id = p.id
+            WHERE c.id = :conversa_id";
 
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([
-        'conversa_id' => $conversaId,
-        'usuario_id' => $usuarioId
-    ]);
+    // 2. Aplica a regra de segurança com base no perfil
+    if ($perfil === 'administrador') {
+        // Administrador tem acesso irrestrito à conversa
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute(['conversa_id' => $conversaId]);
+    } else {
+        // Paciente ou Profissional precisam ser donos da conversa
+        $campo = $perfil === 'paciente' ? 'c.paciente_id' : 'c.profissional_id';
+        $sql .= " AND $campo = :usuario_id";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            'conversa_id' => $conversaId,
+            'usuario_id' => $usuarioId
+        ]);
+    }
 
     $conversa = $stmt->fetch();
-
     return $conversa ?: null;
 }
 
@@ -294,7 +294,7 @@ if ($metodo === 'GET') {
             ]);
         }
 
-        if ($perfil === 'paciente') {
+       if ($perfil === 'paciente') {
             $stmt = $pdo->prepare(
                 'SELECT
                     c.id AS conversa_id,
@@ -302,13 +302,33 @@ if ($metodo === 'GET') {
                     c.inicio_em,
                     c.fim_em,
                     q.id AS consulta_id,
-                    q.medico,
-                    q.especialidade,
+                    u.nome AS medico,
+                    e.nome AS especialidade,
                     q.data_hora
                  FROM conversas c
-                 INNER JOIN consultas q
-                    ON q.id = c.consulta_id
+                 INNER JOIN consultas q ON q.id = c.consulta_id
+                 LEFT JOIN pacientes u ON q.profissional_id = u.id
+                 LEFT JOIN especialidades e ON q.especialidade_id = e.id
                  WHERE c.paciente_id = :usuario_id
+                 ORDER BY c.inicio_em DESC'
+            );
+        } elseif ($perfil === 'administrador') {
+            $stmt = $pdo->prepare(
+                'SELECT
+                    c.id AS conversa_id,
+                    c.status,
+                    c.inicio_em,
+                    c.fim_em,
+                    q.id AS consulta_id,
+                    u.nome AS medico,
+                    e.nome AS especialidade,
+                    q.data_hora,
+                    p.nome AS paciente_nome
+                 FROM conversas c
+                 INNER JOIN consultas q ON q.id = c.consulta_id
+                 LEFT JOIN pacientes u ON q.profissional_id = u.id
+                 LEFT JOIN especialidades e ON q.especialidade_id = e.id
+                 INNER JOIN pacientes p ON p.id = c.paciente_id
                  ORDER BY c.inicio_em DESC'
             );
         } else {
@@ -319,15 +339,15 @@ if ($metodo === 'GET') {
                     c.inicio_em,
                     c.fim_em,
                     q.id AS consulta_id,
-                    q.medico,
-                    q.especialidade,
+                    u.nome AS medico,
+                    e.nome AS especialidade,
                     q.data_hora,
                     p.nome AS paciente_nome
                  FROM conversas c
-                 INNER JOIN consultas q
-                    ON q.id = c.consulta_id
-                 INNER JOIN pacientes p
-                    ON p.id = c.paciente_id
+                 INNER JOIN consultas q ON q.id = c.consulta_id
+                 LEFT JOIN pacientes u ON q.profissional_id = u.id
+                 LEFT JOIN especialidades e ON q.especialidade_id = e.id
+                 INNER JOIN pacientes p ON p.id = c.paciente_id
                  WHERE c.profissional_id = :usuario_id
                  ORDER BY c.inicio_em DESC'
             );

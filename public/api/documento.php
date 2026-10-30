@@ -9,7 +9,8 @@ if (!$usuario) {
     json_response(['ok' => false, 'erro' => 'Não autenticado'], 401);
 }
 
-if (($usuario['perfil'] ?? '') !== 'paciente') {
+$perfilAtual = $usuario['perfil'] ?? '';
+if ($perfilAtual !== 'paciente' && $perfilAtual !== 'administrador' && $perfilAtual !== 'profissional') {
     json_response(['ok' => false, 'erro' => 'Acesso negado'], 403);
 }
 

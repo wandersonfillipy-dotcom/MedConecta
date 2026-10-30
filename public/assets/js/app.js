@@ -139,7 +139,7 @@ bindForm('#form-agendamento', 'api/agendamento.php', resultado => {
 });
 
 async function carregarConsultas() {
-  const lista = document.getElementById('agenda-lista') || document.getElementById('lista-consultas');
+  const lista = $('#agenda-lista') || document.getElementById('agenda-lista');
   if (!lista) return;
 
   try {
@@ -152,17 +152,31 @@ async function carregarConsultas() {
       return;
     }
 
-    const agora = new Date();
+  const agora = new Date();
 
-    lista.innerHTML = resultado.consultas.map(consulta => {
+    // Substitua o containerConsultas.innerHTML (ou a variável equivalente no seu código)
+    containerConsultas.innerHTML = resultado.consultas.map(consulta => {
       const ehTelemedicina = consulta.local && consulta.local.toLowerCase().includes('telemedicina');
-      
-      // Conversão segura da data para o JavaScript
       const dataConsulta = new Date(consulta.data_hora.replace(' ', 'T'));
       const jaChegouHorario = agora >= dataConsulta;
 
+      // 1. Regra de Status Dinâmico
+      let statusExibicao = consulta.status;
+      if (statusExibicao !== 'cancelada') {
+        if (jaChegouHorario) {
+          if (consulta.conversa_id || consulta.chat_status === 'ativo') {
+            statusExibicao = 'atendido';
+          } else {
+            statusExibicao = 'faltou';
+          }
+        } else {
+          statusExibicao = 'agendada';
+        }
+      }
+
+      // 2. Regra de exibição do Botão de Chat
       let botaoChatHtml = '';
-      if (ehTelemedicina && jaChegouHorario && consulta.status !== 'cancelada') {
+      if (ehTelemedicina && statusExibicao !== 'cancelada' && statusExibicao !== 'faltou') {
         const linkChat = consulta.conversa_id 
           ? `chat.php?id=${consulta.conversa_id}` 
           : `chat.php?consulta_id=${consulta.id}`;
@@ -170,12 +184,13 @@ async function carregarConsultas() {
         botaoChatHtml = `
           <div style="margin-top: .75rem;">
             <a href="${linkChat}" class="btn btn-primary btn-sm">
-              💬 Abrir chat com o médico
+              💬 Abrir chat
             </a>
           </div>
         `;
       }
 
+      // 3. Montagem do HTML do Dashboard
       return `
         <div class="consulta-item" style="padding: 1rem; border-bottom: 1px solid var(--border-color); margin-bottom: 0.5rem; background: #fff; border-radius: 8px;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -183,18 +198,19 @@ async function carregarConsultas() {
               <strong>${escaparHtml(consulta.medico || 'Médico')}</strong>
               · <span>${escaparHtml(consulta.especialidade || 'Especialidade')}</span>
               <small style="display:block; color:var(--text-muted); margin-top:0.25rem;">
-                ${new Date(consulta.data_hora.replace(' ', 'T')).toLocaleString('pt-BR')}
+                ${dataConsulta.toLocaleString('pt-BR')}
                 · ${escaparHtml(consulta.local)}
               </small>
               ${botaoChatHtml}
             </div>
-            <span class="status-badge status-${escaparHtml(consulta.status)}">
-              ${escaparHtml(consulta.status)}
+            <span class="status-badge status-${escaparHtml(statusExibicao)}" style="text-transform: capitalize;">
+              ${escaparHtml(statusExibicao)}
             </span>
           </div>
         </div>
       `;
     }).join('');
+
   } catch (err) {
     console.error("Erro ao carregar consultas:", err);
   }
