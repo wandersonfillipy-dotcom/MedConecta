@@ -110,12 +110,10 @@ require dirname(__DIR__) . '/includes/header.php';
           <thead>
 
             <tr>
-              <th>ID</th>
               <th>Nome</th>
               <th>E-mail</th>
               <th>Telefone</th>
               <th>Perfil</th>
-              <th>Data do cadastro</th>
             </tr>
 
           </thead>
@@ -135,10 +133,6 @@ require dirname(__DIR__) . '/includes/header.php';
               <?php foreach ($usuarios as $usuario): ?>
 
                 <tr>
-
-                  <td>
-                    <?= (int) $usuario['id'] ?>
-                  </td>
 
                   <td>
                     <?= e($usuario['nome']) ?>
@@ -222,10 +216,7 @@ require dirname(__DIR__) . '/includes/header.php';
 
                   </td>
 
-                  <td>
-                    <?= e($usuario['created_at']) ?>
-                  </td>
-
+                  
                 </tr>
 
               <?php endforeach; ?>

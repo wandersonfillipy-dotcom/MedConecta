@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 require_once dirname(__DIR__, 2) . '/includes/bootstrap.php';
@@ -13,18 +12,25 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
     try {
+        // Ajustado para cruzar as tabelas e trazer o nome do médico e da especialidade
         $stmt = db()->prepare(
-            'SELECT * FROM consultas WHERE paciente_id = :id ORDER BY data_hora ASC'
+            'SELECT c.*, u.nome as medico, e.nome as especialidade_nome 
+             FROM consultas c 
+             INNER JOIN pacientes u ON c.profissional_id = u.id 
+             LEFT JOIN especialidades e ON c.especialidade_id = e.id 
+             WHERE c.paciente_id = :id 
+             ORDER BY c.data_hora ASC'
         );
         $stmt->execute(['id' => $usuario['id']]);
-        json_response(['ok' => true, 'consultas' => $stmt->fetchAll()]);
-    } catch (Throwable) {
-        json_response(['ok' => false, 'erro' => 'Erro ao listar consultas'], 500);
+        json_response(['ok' => true, 'consultas' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+    } catch (Throwable $e) {
+        json_response(['ok' => false, 'erro' => 'Erro ao listar consultas: ' . $e->getMessage()], 500);
     }
 }
 
 if ($method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+    
     if (!validar_csrf($input['csrf'] ?? null)) {
         json_response(['ok' => false, 'erro' => 'Token inválido'], 403);
     }
@@ -40,38 +46,43 @@ if ($method === 'POST') {
         json_response(['ok' => true, 'mensagem' => 'Consulta cancelada.']);
     }
 
-    $medico = trim((string) ($input['medico'] ?? ''));
-    $especialidade = trim((string) ($input['especialidade'] ?? ''));
+    // Recebe os IDs (se o frontend JS continuar enviando 'medico', ele pega o ID contido nele)
+    $profissional_id = (int) ($input['profissional_id'] ?? $input['medico'] ?? 0);
+    $especialidade_id = (int) ($input['especialidade_id'] ?? 0);
     $local = trim((string) ($input['local'] ?? 'MedConecta — Telemedicina'));
-    $dataHora = (string) ($input['data_hora'] ?? '');
+    $dataHoraCrua = (string) ($input['data_hora'] ?? '');
 
-    if ($medico === '' || $especialidade === '' || $dataHora === '') {
+    if ($profissional_id === 0 || $dataHoraCrua === '') {
         json_response(['ok' => false, 'erro' => 'Preencha médico, especialidade e data/hora.'], 422);
     }
 
+    // Converte a data do HTML datetime-local para o formato do MySQL (YYYY-MM-DD HH:MM:SS)
+    $dataHora = date('Y-m-d H:i:s', strtotime($dataHoraCrua));
+
     try {
+        // ATENÇÃO: A sua tabela `consultas` precisa ter as colunas `profissional_id` e `especialidade_id`
         $stmt = db()->prepare(
-            'INSERT INTO consultas (paciente_id, medico, especialidade, local, data_hora, status)
-             VALUES (:pid, :m, :e, :l, :dh, "agendada")'
+            'INSERT INTO consultas (paciente_id, profissional_id, especialidade_id, local, data_hora, status)
+             VALUES (:pid, :pro_id, :esp_id, :l, :dh, "agendada")'
         );
         $stmt->execute([
-            'pid' => $usuario['id'],
-            'm' => $medico,
-            'e' => $especialidade,
-            'l' => $local,
-            'dh' => $dataHora,
+            'pid'    => $usuario['id'],
+            'pro_id' => $profissional_id,
+            'esp_id' => $especialidade_id,
+            'l'      => $local,
+            'dh'     => $dataHora,
         ]);
+        
         json_response([
             'ok' => true,
             'mensagem' => 'Consulta agendada com sucesso!',
             'confirmacao' => [
-                'medico' => $medico,
-                'especialidade' => $especialidade,
                 'data_hora' => $dataHora,
             ],
         ]);
-    } catch (Throwable) {
-        json_response(['ok' => false, 'erro' => 'Erro ao agendar'], 500);
+    } catch (Throwable $e) {
+        // Exibe o erro real do banco de dados na mensagem vermelha para descobrirmos o que falta
+        json_response(['ok' => false, 'erro' => 'Erro do BD: ' . $e->getMessage()], 500);
     }
 }
 

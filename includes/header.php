@@ -4,21 +4,9 @@ $cfg = app_config();
 $paginaAtual = basename($_SERVER['PHP_SELF'] ?? 'index.php');
 $usuario = usuario_logado();
 
+// Fixamos a "Minha área" sempre no dashboard pessoal (prontuário)
+// Assim o administrador acessa sua saúde em "Minha área" e o sistema em "Administração"
 $paginaArea = 'dashboard.php';
-
-if ($usuario) {
-    $paginasPorPerfil = [
-        'paciente' => 'dashboard.php',
-        'profissional' => 'profissional.php',
-        'cuidador' => 'cuidador.php',
-        'administrador' => 'admin.php',
-    ];
-
-    $perfilAtual = $usuario['perfil'] ?? 'paciente';
-
-    $paginaArea =
-        $paginasPorPerfil[$perfilAtual] ?? 'dashboard.php';
-}
 
 ?>
 
@@ -65,6 +53,50 @@ if ($usuario) {
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
     rel="stylesheet"
   >
+
+  <!-- Correções Visuais (Cabeçalho e Tabela de Administração) -->
+  <style>
+    /* Alinha corretamente os elementos da direita no cabeçalho */
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: nowrap;
+    }
+    .busca-header {
+        display: flex;
+        align-items: center;
+        margin: 0;
+    }
+    .busca-header input {
+        margin-bottom: 0; 
+        padding: 6px 12px;
+    }
+    .user-pill {
+        white-space: nowrap;
+    }
+
+    /* Ajusta os formulários (Select + Botão Salvar) na tabela de Usuários */
+    td form {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+    }
+    td form select {
+        padding: 4px 8px !important;
+        height: auto !important;
+        font-size: 14px;
+        width: auto !important;
+        margin-bottom: 0 !important;
+    }
+    td form button {
+        padding: 4px 12px !important;
+        height: auto !important;
+        font-size: 14px;
+        margin-bottom: 0 !important;
+    }
+  </style>
 </head>
 
 <body>
@@ -172,7 +204,6 @@ if ($usuario) {
           </a>
         </li>
 
-        <!-- Link adicionado para o Mapa e Convénios (RF06 / RF07) -->
         <li>
           <a
             href="<?= e(url('locais.php')) ?>"
@@ -263,7 +294,7 @@ if ($usuario) {
           id="busca-q"
           name="q"
           placeholder="Buscar..."
-          minlength="2"
+          minlength="1"
           autocomplete="off"
         >
 
